@@ -70,7 +70,7 @@ void configurar_base_datos(sqlite3 *db)
     exit(1);
   }
 }
-void abrir_base_datos(sqlite3 *db)
+sqlite3* abrir_base_datos(sqlite3 *db)
 {
   int rc = sqlite3_open_v2("obj/BDD.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
   if (rc != SQLITE_OK)
@@ -79,6 +79,7 @@ void abrir_base_datos(sqlite3 *db)
     sqlite3_close(db);
     exit(1);
   }
+  return db;
 }
 
 int main(int argc, char *argv[])
@@ -123,12 +124,12 @@ int main(int argc, char *argv[])
   }
 
   sqlite3 *db1 = NULL, *db2 = NULL, *db3 = NULL, *db4 = NULL, *db5 = NULL;
-  abrir_base_datos(db1);
-  abrir_base_datos(db2);
-  abrir_base_datos(db3);
-  abrir_base_datos(db4);
-  abrir_base_datos(db5);
-  //configurar_base_datos(db1);
+  db1 = abrir_base_datos(db1);
+  db2 = abrir_base_datos(db2);
+  db3 = abrir_base_datos(db3);
+  db4 = abrir_base_datos(db4);
+  db5 = abrir_base_datos(db5);
+  configurar_base_datos(db1);
 
   // A PARTIR DE ACA SE CREAN LOS SOCKETS
 
