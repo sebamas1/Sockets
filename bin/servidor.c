@@ -72,6 +72,7 @@ void configurar_base_datos(sqlite3 *db)
 }
 sqlite3* abrir_base_datos(sqlite3 *db)
 {
+  db = create_shared_memory((size_t) sqlite3_memory_used());
   int rc = sqlite3_open_v2("obj/BDD.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
   if (rc != SQLITE_OK)
   {
@@ -123,13 +124,13 @@ int main(int argc, char *argv[])
     exit(1);
   }
 
-  sqlite3 *db1 = NULL, *db2 = NULL, *db3 = NULL, *db4 = NULL, *db5 = NULL;
-  db1 = abrir_base_datos(db1);
-  db2 = abrir_base_datos(db2);
-  db3 = abrir_base_datos(db3);
-  db4 = abrir_base_datos(db4);
-  db5 = abrir_base_datos(db5);
-  configurar_base_datos(db1);
+  sqlite3 *db[5] = { NULL };
+  db[1] = abrir_base_datos(db[1]);
+  db[2] = abrir_base_datos(db[2]);
+  db[3] = abrir_base_datos(db[3]);
+  db[4] = abrir_base_datos(db[4]);
+  db[5] = abrir_base_datos(db[5]);
+  configurar_base_datos(db[1]);
 
   // A PARTIR DE ACA SE CREAN LOS SOCKETS
 
@@ -180,6 +181,7 @@ int main(int argc, char *argv[])
             exit(1);
           }
           agregar_cantidad_recibida((char *)local_buf, (unsigned long)resultado);
+          printf("%s\n", buffer);
         }
       }
     }

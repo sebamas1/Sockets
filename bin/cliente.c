@@ -6,39 +6,17 @@
 #include <string.h>
 
 
-static char *rand_string(char *str, size_t size)
-{
-	const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
-	if (size)
-	{
-		--size;
-		for (size_t n = 0; n < size; n++)
-		{
-			int key = rand() % (int)(sizeof charset - 1);
-			str[n] = charset[key];
-		}
-		str[size] = '\0';
-	}
-	return str;
-}
-
 int main(int argc, char *argv[])
 {
 	int sockfd;
 	struct sockaddr_un struct_cliente;
 
- if (argc != 3)
+ if (argc != 2)
   {
-    printf("Uso: %s <nombre_de_socket>, Cantidad de Bytes a enviar por mensaje", argv[0]);
+    printf("Uso: %s <nombre_de_socket>", argv[0]);
     exit(1);
   }
-  else if (atoi(argv[2]) > 10000)
-  {
-    printf("Solo se pueden enviar mensajes de un maximo de 10000 Bytes\n");
-    exit(1);
-  }
-
-	size_t bytes_enviar = (size_t)atoi(argv[2]);
+	char query[] = "SELECT * from Cars";
 
 	/* Creacion de socket */
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -63,11 +41,9 @@ int main(int argc, char *argv[])
             perror("connect");
             exit(1);
         }
-		char buffer[bytes_enviar];
 		while (1)
 		{
-			memset(buffer, 0, bytes_enviar);
-            ssize_t n = write(sockfd, rand_string(buffer, bytes_enviar), bytes_enviar);
+            ssize_t n = write(sockfd, query, sizeof(query));
 			if (n < 0)
 			{
 				perror("sendto, es posible que el server no este levantado");
