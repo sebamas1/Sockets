@@ -1,0 +1,22 @@
+# Ignore everything
+*
+
+# But not these files...
+!.gitignore
+!bin/*
+!.git
+!img
+!clienteAF.sh
+!clienteipv4.sh
+!clienteipv6.sh
+!Makefile
+!README.md
+!Informe.md
+
+
+# ...even if they are in subdirectories
+!*/
+
+# if the files to be tracked are in subdirectories
+!*/a/b/file1.txt
+!*/a/b/c/*
