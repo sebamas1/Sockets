@@ -1,6 +1,6 @@
 CFLAGS = -Wall -pedantic -Werror -Wextra -Wconversion -std=gnu11 
 
-all : serv cli cli4
+all : serv cli cli4 cli6
 
 serv: obj/servidor.o
 	gcc $(CFLAGS) -o serv obj/servidor.o -lsqlite3
@@ -10,6 +10,9 @@ cli: obj/cliente.o
 
 cli4: obj/cliente4.o
 	gcc $(CFLAGS) -o cli4 obj/cliente4.o
+
+cli6: obj/cliente6.o
+	gcc $(CFLAGS) -o cli6 obj/cliente6.o
 	
 obj/servidor.o: bin/servidor.c
 	mkdir -p obj
@@ -22,6 +25,10 @@ obj/cliente.o: bin/cliente.c
 obj/cliente4.o: bin/cliente4.c
 	mkdir -p obj
 	gcc $(CFLAGS) -c bin/cliente4.c -o obj/cliente4.o -lsqlite3
+
+obj/cliente6.o: bin/cliente6.c
+	mkdir -p obj
+	gcc $(CFLAGS) -c bin/cliente6.c -o obj/cliente6.o -lsqlite3
 
 clean:
 	rm -f obj/*
