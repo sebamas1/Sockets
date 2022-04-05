@@ -5,6 +5,8 @@
 #include <sys/un.h>
 #include <string.h>
 
+#define TAM 10000
+
 
 int main(int argc, char *argv[])
 {
@@ -43,10 +45,21 @@ int main(int argc, char *argv[])
         }
 		while (1)
 		{
+			//sleep(1);
+			char buffer[TAM];
+			memset(buffer, 0, sizeof(buffer));
             ssize_t n = write(sockfd, query, sizeof(query));
 			if (n < 0)
 			{
 				perror("sendto, es posible que el server no este levantado");
+				exit(1);
+			}
+			printf("hola soy el cliente acabo de enviar\n");
+			n = read(sockfd, buffer, TAM);
+			printf("%s\n", buffer);
+			if (n < 0)
+			{
+				perror("recv");
 				exit(1);
 			}
 		}

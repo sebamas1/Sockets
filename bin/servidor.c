@@ -14,6 +14,36 @@
 #define TAM 10000
 
 /*
+Esta funcion realiza una query pasada en un buffer como parametro, contra la base de datos eligiendo al azar entre las 5 base de datos
+disponibles pasadas en un array de estructuras sqlite3 como parametro. La funcion retorna un string 
+con la respuesta de la base de datos. Si hubo un error, retorna el string con el error.
+*/
+char *query_db(char buffer[], char *query, sqlite3 *db[])
+{
+    int i = rand() % 5;
+    sqlite3_stmt *res;
+    int rc = sqlite3_prepare_v2(db[i], query, -1, &res, 0);
+    if (rc != SQLITE_OK)
+    {
+      fprintf(stderr, "Error en el prepare: %i\n", rc);
+      exit(1);
+    }
+
+    while(sqlite3_step(res) == SQLITE_ROW)
+    {
+      int j = sqlite3_column_count(res);
+      for(int i = 0; i < j; i++)
+      {
+        char *tmp = (char*)sqlite3_column_text(res, i);
+        strncat(buffer, tmp, strlen(tmp));
+      }
+      strcat(buffer, "\n");
+    }
+    sqlite3_finalize(res);
+    return buffer;
+}
+
+/*
 Esta funcion toma como parametro un buffer de caracteres y un long unsigned int. Luego convierte
 la cadena de caracteres en un long unsigned int, le suma el otro numero tomado como parametro
 y lo guarda en el buffer de caracteres.
@@ -73,7 +103,7 @@ void configurar_base_datos(sqlite3 *db)
 sqlite3* abrir_base_datos(sqlite3 *db)
 {
   db = create_shared_memory((size_t) sqlite3_memory_used());
-  int rc = sqlite3_open_v2("obj/BDD.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, NULL);
+  int rc = sqlite3_open_v2("obj/BDD.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_SHAREDCACHE, NULL );
   if (rc != SQLITE_OK)
   {
     fprintf(stderr, "No se puede abrir la base de datos: %s\n", sqlite3_errmsg(db));
@@ -125,12 +155,16 @@ int main(int argc, char *argv[])
   }
 
   sqlite3 *db[5] = { NULL };
+  db[0] = abrir_base_datos(db[0]);
   db[1] = abrir_base_datos(db[1]);
   db[2] = abrir_base_datos(db[2]);
   db[3] = abrir_base_datos(db[3]);
   db[4] = abrir_base_datos(db[4]);
-  db[5] = abrir_base_datos(db[5]);
+  configurar_base_datos(db[0]);
   configurar_base_datos(db[1]);
+  configurar_base_datos(db[2]);
+  configurar_base_datos(db[3]);
+  configurar_base_datos(db[4]);
 
   // A PARTIR DE ACA SE CREAN LOS SOCKETS
 
@@ -173,15 +207,26 @@ int main(int argc, char *argv[])
         close(socket_server);
         while (1)
         {
-          char buffer[TAM];
-          long int resultado = read(newsockfd, buffer, TAM - 1);
+          char recibido[TAM];
+          char respuesta[TAM];
+          memset(recibido, 0, sizeof(recibido));
+          memset(respuesta, 0, sizeof(respuesta));
+          long int resultado = read(newsockfd, recibido, TAM - 1);
           if (resultado < 0)
           {
             perror("recvfrom");
             exit(1);
           }
           agregar_cantidad_recibida((char *)local_buf, (unsigned long)resultado);
-          printf("%s\n", buffer);
+
+          query_db(respuesta, recibido, db);
+          size_t respuesta_size = strlen(respuesta);
+          resultado = write(newsockfd, respuesta, respuesta_size);
+          if (resultado < 0)
+          {
+            perror("sendto");
+            exit(1);
+          }
         }
       }
     }
