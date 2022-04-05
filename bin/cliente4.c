@@ -7,21 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-static char *rand_string(char *str, size_t size)
-{
-    const char charset[] = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJK...";
-    if (size)
-    {
-        --size;
-        for (size_t n = 0; n < size; n++)
-        {
-            int key = rand() % (int)(sizeof charset - 1);
-            str[n] = charset[key];
-        }
-        str[size] = '\0';
-    }
-    return str;
-}
+#define TAM 10000
 
 int main(int argc, char *argv[])
 {
@@ -29,19 +15,14 @@ int main(int argc, char *argv[])
     struct sockaddr_in dest_addr;
     struct hostent *server;
 
-    if (argc != 4)
+    if (argc != 3)
     {
-        printf("Uso: %s <nombre_de_socket>, Puerto IPv4 a enviar, Cantidad de Bytes a enviar por mensaje\n", argv[0]);
+        printf("Uso: %s <nombre_de_socket>, <server>, Puerto IPv4 a enviar\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[2]) < 1024 || atoi(argv[2]) > 65535)
     {
         printf("Puerto invalido, debe estar entre 1024 y 65535 y debe ser un valor numerico\n");
-        exit(1);
-    }
-    else if (atoi(argv[3]) > 10000)
-    {
-        printf("Solo se pueden enviar mensajes de un maximo de 10000 Bytes\n");
         exit(1);
     }
 
@@ -55,32 +36,27 @@ int main(int argc, char *argv[])
     dest_addr.sin_addr = *((struct in_addr *)server->h_addr);
     memset(&(dest_addr.sin_zero), '\0', 8);
 
-    int child_pid;
-
-    if ((child_pid = fork()) < 0)
+    if (connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0)
     {
-        perror("fork");
+        perror("connect");
         exit(1);
     }
-    if (child_pid == 0)
+    char buffer[TAM];
+    while (1)
     {
-        if (connect(sockfd, (struct sockaddr *)&dest_addr, sizeof(dest_addr)) < 0)
+        printf("\n>");
+        memset(buffer, 0, sizeof(buffer));
+        fflush(stdin);
+        fgets(buffer, TAM, stdin);
+        ssize_t n = send(sockfd, buffer, sizeof(buffer), 0);
+        if (n < 0)
         {
-            perror("connect");
+            perror("sendto");
             exit(1);
         }
-        size_t bytes_enviar = (size_t)atoi(argv[3]);
-        char buffer[bytes_enviar];
-        while (1)
-        {
-            memset(buffer, 0, bytes_enviar);
-            ssize_t n = write(sockfd, rand_string(buffer, bytes_enviar), bytes_enviar);
-            if (n < 0)
-            {
-                perror("sendto");
-                exit(1);
-            }
-        }
+        memset(buffer, 0, sizeof(buffer));
+        n = recv(sockfd, buffer, sizeof(buffer), 0);
+        printf("%s", buffer);
     }
     return 0;
 }

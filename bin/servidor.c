@@ -25,8 +25,9 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
     int rc = sqlite3_prepare_v2(db[i], query, -1, &res, 0);
     if (rc != SQLITE_OK)
     {
-      fprintf(stderr, "Error en el prepare: %i\n", rc);
-      exit(1);
+      strcat(buffer, "Error en el prepare, posible error de sintaxis\n");
+      sqlite3_finalize(res);
+      return buffer;
     }
     rc = sqlite3_step(res);
     if (rc == SQLITE_DONE)
@@ -223,7 +224,7 @@ int main(int argc, char *argv[])
           char respuesta[TAM];
           memset(recibido, 0, sizeof(recibido));
           memset(respuesta, 0, sizeof(respuesta));
-          long int resultado = read(newsockfd, recibido, TAM - 1);
+          long int resultado = recv(newsockfd, recibido, TAM - 1, 0);
           if (resultado < 0)
           {
             perror("recvfrom");
@@ -233,7 +234,7 @@ int main(int argc, char *argv[])
 
           query_db(respuesta, recibido, db);
           size_t respuesta_size = strlen(respuesta);
-          resultado = write(newsockfd, respuesta, respuesta_size);
+          resultado = send(newsockfd, respuesta, respuesta_size, 0);
           if (resultado < 0)
           {
             perror("sendto");
@@ -291,15 +292,26 @@ int main(int argc, char *argv[])
         close(socket_server);
         while (1)
         {
-          char buffer[TAM];
-          memset(buffer, 0, TAM);
-          long int resultado = read(newsockfd, buffer, TAM - 1);
+          char recibido[TAM];
+          char respuesta[TAM];
+          memset(recibido, 0, sizeof(recibido));
+          memset(respuesta, 0, sizeof(respuesta));
+          long int resultado = recv(newsockfd, recibido, TAM - 1, 0);
           if (resultado < 0)
           {
             perror("read");
             exit(1);
           }
           agregar_cantidad_recibida((char *)ipv4_buf, (unsigned long)resultado);
+          
+          query_db(respuesta, recibido, db);
+          size_t respuesta_size = strlen(respuesta);
+          resultado = send(newsockfd, respuesta, respuesta_size, 0);
+          if (resultado < 0)
+          {
+            perror("send");
+            exit(1);
+          }
         }
       }
     }
