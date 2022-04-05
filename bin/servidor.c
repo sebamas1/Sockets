@@ -28,16 +28,28 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
       fprintf(stderr, "Error en el prepare: %i\n", rc);
       exit(1);
     }
-
-    while(sqlite3_step(res) == SQLITE_ROW)
+    rc = sqlite3_step(res);
+    if (rc == SQLITE_DONE)
     {
-      int j = sqlite3_column_count(res);
-      for(int i = 0; i < j; i++)
+      strcat(buffer, "DONE");
+    }
+    else if (rc == SQLITE_ERROR)
+    {
+      fprintf(stderr, "Error en el step: %i\n", rc);
+    }
+    else if (rc == SQLITE_ROW)
+    {
+      do
       {
-        char *tmp = (char*)sqlite3_column_text(res, i);
-        strncat(buffer, tmp, strlen(tmp));
-      }
-      strcat(buffer, "\n");
+        int j = sqlite3_column_count(res);
+        for (int i = 0; i < j; i++)
+        {
+          char *tmp = (char *)sqlite3_column_text(res, i);
+          strncat(buffer, tmp, strlen(tmp));
+          strcat(buffer, " ");
+        }
+        strcat(buffer, "\n");
+      } while (sqlite3_step(res) == SQLITE_ROW);
     }
     sqlite3_finalize(res);
     return buffer;
@@ -161,10 +173,10 @@ int main(int argc, char *argv[])
   db[3] = abrir_base_datos(db[3]);
   db[4] = abrir_base_datos(db[4]);
   configurar_base_datos(db[0]);
-  configurar_base_datos(db[1]);
-  configurar_base_datos(db[2]);
-  configurar_base_datos(db[3]);
-  configurar_base_datos(db[4]);
+  // configurar_base_datos(db[1]);
+  // configurar_base_datos(db[2]);
+  // configurar_base_datos(db[3]);
+  // configurar_base_datos(db[4]);
 
   // A PARTIR DE ACA SE CREAN LOS SOCKETS
 
@@ -360,9 +372,9 @@ int main(int argc, char *argv[])
     long unsigned int velocidad_ipv4 = (long unsigned int)atoi(ipv4_buf) / 131072;
     long unsigned int velocidad_ipv6 = (long unsigned int)atoi(ipv6_buf) / 131072;
 
-    fprintf(stderr, "Velocidad local: %lu Mb/s\n", velocidad_local);
-    fprintf(stderr, "Velocidad IPV4: %lu Mb/s\n", velocidad_ipv4);
-    fprintf(stderr, "Velocidad IPV6: %lu Mb/s\n", velocidad_ipv6);
+    printf("Velocidad local: %lu Mb/s\n", velocidad_local);
+    printf("Velocidad IPv4: %lu Mb/s\n", velocidad_ipv4);
+    printf("Velocidad IPv6: %lu Mb/s\n", velocidad_ipv6);
 
     memset(local_buf, 0, sizeof((char *)local_buf));
     memset(ipv4_buf, 0, sizeof((char *)ipv4_buf));

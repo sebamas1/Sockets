@@ -18,7 +18,7 @@ int main(int argc, char *argv[])
     printf("Uso: %s <nombre_de_socket>", argv[0]);
     exit(1);
   }
-	char query[] = "SELECT * from Cars";
+	char query[] = "SELECT * From Cars";
 
 	/* Creacion de socket */
 	if ((sockfd = socket(AF_UNIX, SOCK_STREAM, 0)) < 0)
@@ -48,14 +48,13 @@ int main(int argc, char *argv[])
 			//sleep(1);
 			char buffer[TAM];
 			memset(buffer, 0, sizeof(buffer));
-            ssize_t n = write(sockfd, query, sizeof(query));
+            ssize_t n = send(sockfd, query, sizeof(query), 0);
 			if (n < 0)
 			{
 				perror("sendto, es posible que el server no este levantado");
 				exit(1);
 			}
-			printf("hola soy el cliente acabo de enviar\n");
-			n = read(sockfd, buffer, TAM);
+			n = recv(sockfd, buffer, TAM, 0);
 			printf("%s\n", buffer);
 			if (n < 0)
 			{
