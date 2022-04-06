@@ -10,7 +10,7 @@
 #include <sys/prctl.h>
 #include <fcntl.h>
 
-#define TAM 10000
+#define TAM 1000000
 
 void write_file(int sockfd)
 {
@@ -26,7 +26,6 @@ void write_file(int sockfd)
         exit(1);
     }
     ssize_t n = recv(sockfd, buffer, TAM, 0);
-    printf("%lu\n", n);
     if (n <= 0)
     {
         perror("recv");
@@ -45,7 +44,7 @@ int main(int argc, char *argv[])
 
     if (argc != 3)
     {
-        printf("Uso: %s <nombre_de_socket>, <server>, Puerto IPv6 a enviar\n", argv[0]);
+        printf("Uso: %s <server>, Puerto IPv6 a enviar\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[2]) < 1024 || atoi(argv[2]) > 65535)
@@ -55,6 +54,11 @@ int main(int argc, char *argv[])
     }
 
     server = gethostbyname2(argv[1], AF_INET6);
+    if(server == NULL)
+    {
+        printf("Error, no se pudo resolver el nombre\n");
+        exit(1);
+    }
 
     puerto = atoi(argv[2]);
     sockfd = socket(AF_INET6, SOCK_STREAM, 0);

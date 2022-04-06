@@ -7,7 +7,7 @@
 #include <netinet/in.h>
 #include <netdb.h>
 
-#define TAM 10000
+#define TAM 1000000
 
 int main(int argc, char *argv[])
 {
@@ -17,7 +17,7 @@ int main(int argc, char *argv[])
 
     if (argc != 3)
     {
-        printf("Uso: %s <nombre_de_socket>, <server>, Puerto IPv4 a enviar\n", argv[0]);
+        printf("Uso: %s <server>, Puerto IPv4 a enviar\n", argv[0]);
         exit(1);
     }
     else if (atoi(argv[2]) < 1024 || atoi(argv[2]) > 65535)
@@ -27,6 +27,12 @@ int main(int argc, char *argv[])
     }
 
     server = gethostbyname(argv[1]);
+
+    if(server == NULL)
+    {
+        printf("Error, no se pudo resolver el nombre\n");
+        exit(1);
+    }
 
     puerto = atoi(argv[2]);
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -49,7 +55,7 @@ int main(int argc, char *argv[])
         fflush(stdin);
         fgets(buffer, TAM, stdin);
         ssize_t n = send(sockfd, buffer, sizeof(buffer), 0);
-        if (n < 0)
+        if (n <= 0)
         {
             perror("sendto");
             exit(1);

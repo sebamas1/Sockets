@@ -11,7 +11,7 @@
 #include <signal.h>
 #include <sqlite3.h>
 
-#define TAM 10000
+#define TAM 1000000
 #define MAX_CLIENTS 1000
 
 void send_file(char *path, int sockfd)
@@ -54,20 +54,22 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
     int i = rand() % 5;
     sqlite3_stmt *res;
     int rc = sqlite3_prepare_v2(db[i], query, -1, &res, 0);
+    if(strlen(query) == 0)
+    {
+        return "FAIL";
+    }
     if (rc != SQLITE_OK)
     {
       strcat(buffer, "Error en el prepare, posible error de sintaxis\n");
       sqlite3_finalize(res);
       return buffer;
     }
-    rc = sqlite3_step(res);
+    while((rc = sqlite3_step(res)) == SQLITE_BUSY){
+      usleep(100);
+    }
     if (rc == SQLITE_DONE)
     {
       strcat(buffer, "DONE");
-    }
-    else if (rc == SQLITE_ERROR)
-    {
-      fprintf(stderr, "Error en el step: %i\n", rc);
     }
     else if (rc == SQLITE_ROW)
     {
@@ -82,6 +84,10 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
         }
         strcat(buffer, "\n");
       } while (sqlite3_step(res) == SQLITE_ROW);
+    } else {
+      fprintf(stderr, "Error en el step: %i\n", rc);
+      sqlite3_finalize(res);
+      exit(EXIT_FAILURE);
     }
     sqlite3_finalize(res);
     return buffer;
@@ -263,7 +269,7 @@ int main(int argc, char *argv[])
           long int resultado = recv(newsockfd, recibido, TAM - 1, 0);
           if (resultado < 0)
           {
-            perror("recvfrom");
+            perror("recv, es posible que un cliente se haya desconectado");
             exit(1);
           }
           agregar_cantidad_recibida((char *)local_buf, (unsigned long)resultado);
@@ -332,10 +338,10 @@ int main(int argc, char *argv[])
           char respuesta[TAM];
           memset(recibido, 0, sizeof(recibido));
           memset(respuesta, 0, sizeof(respuesta));
-          long int resultado = recv(newsockfd, recibido, TAM - 1, 0);
-          if (resultado < 0)
+          long int resultado = recv(newsockfd, recibido, TAM , 0);
+          if (resultado <= 0)
           {
-            perror("read");
+            perror("recv, es posible que un cliente se haya desconectado");
             exit(1);
           }
           agregar_cantidad_recibida((char *)ipv4_buf, (unsigned long)resultado);
