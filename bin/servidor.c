@@ -42,6 +42,31 @@ void send_file(char *path, int sockfd)
     perror("fgets");
     exit(1);
   }
+  fseek(fp, 0L, SEEK_END);
+}
+int loggear_query(char *query, sqlite3 *log_db)
+{
+  char *err_msg = 0;
+  char *sql = "INSERT INTO Log VALUES('";
+  char buffer[TAM];
+  strcat(buffer, sql);
+  strcat(buffer, query);
+  buffer[strcspn(buffer, "\n")] = 0;
+  strcat(buffer, "');");
+  int rc;
+  while((rc = sqlite3_exec(log_db, buffer, 0, 0, &err_msg)) == SQLITE_BUSY)
+  {
+    usleep(100);
+  }
+  if (rc != SQLITE_OK)
+  {
+    fprintf(stderr, "SQL error: %s\n", err_msg);
+    sqlite3_free(err_msg);
+    sqlite3_close(log_db);
+    return -1;
+  }
+  return 0;
+ //sqlite3_close(log_db);
 }
 
 /*
@@ -49,7 +74,7 @@ Esta funcion realiza una query pasada en un buffer como parametro, contra la bas
 disponibles pasadas en un array de estructuras sqlite3 como parametro. La funcion retorna un string 
 con la respuesta de la base de datos. Si hubo un error, retorna el string con el error.
 */
-char *query_db(char buffer[], char *query, sqlite3 *db[])
+char *query_db(char buffer[], char *query, sqlite3 *db[], sqlite3 *log_db)
 {
     int i = rand() % 5;
     sqlite3_stmt *res;
@@ -88,6 +113,10 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
       fprintf(stderr, "Error en el step: %i\n", rc);
       sqlite3_finalize(res);
       exit(EXIT_FAILURE);
+    }
+    if(loggear_query(query, log_db) == -1)
+    {
+      strcat(buffer, "\nError en el loggear_query, posible error de sintaxis. La query puede haber sido ejecutada.\n");
     }
     sqlite3_finalize(res);
     return buffer;
@@ -150,10 +179,11 @@ void configurar_base_datos(sqlite3 *db)
     exit(1);
   }
 }
-sqlite3* abrir_base_datos(sqlite3 *db)
+
+sqlite3* abrir_base_datos(sqlite3 *db, char *path)
 {
   db = create_shared_memory((size_t) sqlite3_memory_used());
-  int rc = sqlite3_open_v2("obj/BDD.db", &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_SHAREDCACHE, NULL );
+  int rc = sqlite3_open_v2(path, &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX | SQLITE_OPEN_SHAREDCACHE, NULL );
   if (rc != SQLITE_OK)
   {
     fprintf(stderr, "No se puede abrir la base de datos: %s\n", sqlite3_errmsg(db));
@@ -205,17 +235,26 @@ int main(int argc, char *argv[])
   }
 
   sqlite3 *db[5] = { NULL };
-  db[0] = abrir_base_datos(db[0]);
-  db[1] = abrir_base_datos(db[1]);
-  db[2] = abrir_base_datos(db[2]);
-  db[3] = abrir_base_datos(db[3]);
-  db[4] = abrir_base_datos(db[4]);
+  sqlite3 *log_db = NULL;
+  db[0] = abrir_base_datos(db[0], "obj/BDD.db");
+  db[1] = abrir_base_datos(db[1], "obj/BDD.db");
+  db[2] = abrir_base_datos(db[2], "obj/BDD.db");
+  db[3] = abrir_base_datos(db[3], "obj/BDD.db");
+  db[4] = abrir_base_datos(db[4], "obj/BDD.db");
   configurar_base_datos(db[0]);
-  // configurar_base_datos(db[1]);
-  // configurar_base_datos(db[2]);
-  // configurar_base_datos(db[3]);
-  // configurar_base_datos(db[4]);
-
+  
+  log_db = abrir_base_datos(log_db, "obj/log_db.db");
+  char *err_msg = 0;
+  char *sql = "DROP TABLE IF EXISTS Log;"
+              "CREATE TABLE Log(Name TEXT);";
+  int rc = sqlite3_exec(log_db, sql, 0, 0, &err_msg);
+  if (rc != SQLITE_OK)
+  {
+    fprintf(stderr, "SQL error: %s\n", err_msg);
+    sqlite3_free(err_msg);
+    sqlite3_close(log_db);
+    exit(1);
+  }
   // A PARTIR DE ACA SE CREAN LOS SOCKETS
 
   unlink(argv[1]);
@@ -274,7 +313,7 @@ int main(int argc, char *argv[])
           }
           agregar_cantidad_recibida((char *)local_buf, (unsigned long)resultado);
 
-          query_db(respuesta, recibido, db);
+          query_db(respuesta, recibido, db, log_db);
           size_t respuesta_size = strlen(respuesta);
           resultado = send(newsockfd, respuesta, respuesta_size, 0);
           if (resultado < 0)
@@ -346,7 +385,7 @@ int main(int argc, char *argv[])
           }
           agregar_cantidad_recibida((char *)ipv4_buf, (unsigned long)resultado);
           
-          query_db(respuesta, recibido, db);
+          query_db(respuesta, recibido, db, log_db);
           size_t respuesta_size = strlen(respuesta);
           resultado = send(newsockfd, respuesta, respuesta_size, 0);
           if (resultado < 0)
