@@ -11,7 +11,38 @@
 #include <signal.h>
 #include <sqlite3.h>
 
-#define TAM 10000
+#define TAM 1000000
+#define MAX_CLIENTS 1000
+
+void send_file(char *path, int sockfd)
+{
+  FILE* fp = fopen(path, "r");
+  if (fp == NULL)
+  {
+    perror("Error al abrir el archivo de la base de datos.");
+    exit(1);
+  }
+
+  fseek(fp, 0L, SEEK_END);
+  ssize_t sz = ftell(fp);
+  rewind(fp);
+
+  char* data = malloc((size_t) sz);
+  data[(int) sz + 1] = '\0';
+
+  if (fgets(data, (int) sz, fp) != NULL)
+  {
+    if (send(sockfd, data, (size_t) sz, 0) == -1)
+    {
+      perror("Error en el send.");
+      exit(1);
+    }
+    bzero(data, TAM);
+  } else {
+    perror("fgets");
+    exit(1);
+  }
+}
 
 /*
 Esta funcion realiza una query pasada en un buffer como parametro, contra la base de datos eligiendo al azar entre las 5 base de datos
@@ -23,19 +54,22 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
     int i = rand() % 5;
     sqlite3_stmt *res;
     int rc = sqlite3_prepare_v2(db[i], query, -1, &res, 0);
+    if(strlen(query) == 0)
+    {
+        return "FAIL";
+    }
     if (rc != SQLITE_OK)
     {
-      fprintf(stderr, "Error en el prepare: %i\n", rc);
-      exit(1);
+      strcat(buffer, "Error en el prepare, posible error de sintaxis\n");
+      sqlite3_finalize(res);
+      return buffer;
     }
-    rc = sqlite3_step(res);
+    while((rc = sqlite3_step(res)) == SQLITE_BUSY){
+      usleep(100);
+    }
     if (rc == SQLITE_DONE)
     {
       strcat(buffer, "DONE");
-    }
-    else if (rc == SQLITE_ERROR)
-    {
-      fprintf(stderr, "Error en el step: %i\n", rc);
     }
     else if (rc == SQLITE_ROW)
     {
@@ -50,6 +84,10 @@ char *query_db(char buffer[], char *query, sqlite3 *db[])
         }
         strcat(buffer, "\n");
       } while (sqlite3_step(res) == SQLITE_ROW);
+    } else {
+      fprintf(stderr, "Error en el step: %i\n", rc);
+      sqlite3_finalize(res);
+      exit(EXIT_FAILURE);
     }
     sqlite3_finalize(res);
     return buffer;
@@ -203,11 +241,16 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr);
     while (1)
     {
       int newsockfd = accept(socket_server, (struct sockaddr *)&cli_addr, (socklen_t *)&clilen);
+      if (newsockfd < 0)
+      {
+        perror("accept");
+        exit(1);
+      }
       int children_client_pid;
       if ((children_client_pid = fork()) == -1)
       {
@@ -223,17 +266,17 @@ int main(int argc, char *argv[])
           char respuesta[TAM];
           memset(recibido, 0, sizeof(recibido));
           memset(respuesta, 0, sizeof(respuesta));
-          long int resultado = read(newsockfd, recibido, TAM - 1);
+          long int resultado = recv(newsockfd, recibido, TAM - 1, 0);
           if (resultado < 0)
           {
-            perror("recvfrom");
+            perror("recv, es posible que un cliente se haya desconectado");
             exit(1);
           }
           agregar_cantidad_recibida((char *)local_buf, (unsigned long)resultado);
 
           query_db(respuesta, recibido, db);
           size_t respuesta_size = strlen(respuesta);
-          resultado = write(newsockfd, respuesta, respuesta_size);
+          resultado = send(newsockfd, respuesta, respuesta_size, 0);
           if (resultado < 0)
           {
             perror("sendto");
@@ -275,7 +318,7 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr4);
     while (1)
     {
@@ -291,15 +334,26 @@ int main(int argc, char *argv[])
         close(socket_server);
         while (1)
         {
-          char buffer[TAM];
-          memset(buffer, 0, TAM);
-          long int resultado = read(newsockfd, buffer, TAM - 1);
-          if (resultado < 0)
+          char recibido[TAM];
+          char respuesta[TAM];
+          memset(recibido, 0, sizeof(recibido));
+          memset(respuesta, 0, sizeof(respuesta));
+          long int resultado = recv(newsockfd, recibido, TAM , 0);
+          if (resultado <= 0)
           {
-            perror("read");
+            perror("recv, es posible que un cliente se haya desconectado");
             exit(1);
           }
           agregar_cantidad_recibida((char *)ipv4_buf, (unsigned long)resultado);
+          
+          query_db(respuesta, recibido, db);
+          size_t respuesta_size = strlen(respuesta);
+          resultado = send(newsockfd, respuesta, respuesta_size, 0);
+          if (resultado < 0)
+          {
+            perror("send");
+            exit(1);
+          }
         }
       }
     }
@@ -333,11 +387,16 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr6);
     while (1)
     {
       int newsockfd = accept(socket_server, (struct sockaddr *)&cli_addr6, (socklen_t *)&clilen);
+      if(newsockfd < 0)
+      {
+        perror("accept");
+        exit(1);
+      }
       int children_client_pid;
       if ((children_client_pid = fork()) == -1)
       {
@@ -347,18 +406,10 @@ int main(int argc, char *argv[])
       if (children_client_pid == 0)
       {
         close(socket_server);
-        while (1)
-        {
-          char buffer[TAM];
-          memset(buffer, 0, TAM);
-          long int resultado = read(newsockfd, buffer, TAM - 1);
-          if (resultado < 0)
-          {
-            perror("recvfrom");
-            exit(1);
-          }
-          agregar_cantidad_recibida((char *)ipv6_buf, (unsigned long)resultado);
-        }
+        //agregar_cantidad_recibida((char *)ipv6_buf, (unsigned long)resultado);
+        send_file("obj/BDD.db", newsockfd);
+        close(newsockfd);
+        exit(0);
       }
     }
   }
@@ -372,9 +423,9 @@ int main(int argc, char *argv[])
     long unsigned int velocidad_ipv4 = (long unsigned int)atoi(ipv4_buf) / 131072;
     long unsigned int velocidad_ipv6 = (long unsigned int)atoi(ipv6_buf) / 131072;
 
-    printf("Velocidad local: %lu Mb/s\n", velocidad_local);
-    printf("Velocidad IPv4: %lu Mb/s\n", velocidad_ipv4);
-    printf("Velocidad IPv6: %lu Mb/s\n", velocidad_ipv6);
+    // printf("Velocidad local: %lu Mb/s\n", velocidad_local);
+    // printf("Velocidad IPv4: %lu Mb/s\n", velocidad_ipv4);
+    // printf("Velocidad IPv6: %lu Mb/s\n", velocidad_ipv6);
 
     memset(local_buf, 0, sizeof((char *)local_buf));
     memset(ipv4_buf, 0, sizeof((char *)ipv4_buf));
@@ -384,7 +435,7 @@ int main(int argc, char *argv[])
     escribir_archivo("ipv4_log.txt", velocidad_ipv4);
     escribir_archivo("ipv6_log.txt", velocidad_ipv6);
 
-    fprintf(stderr, "\n\n\n");
+   // fprintf(stderr, "\n\n\n");
   }
   return 0;
 }

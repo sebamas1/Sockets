@@ -5,7 +5,7 @@
 #include <sys/un.h>
 #include <string.h>
 
-#define TAM 10000
+#define TAM 1000000
 
 
 int main(int argc, char *argv[])
