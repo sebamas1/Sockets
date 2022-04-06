@@ -12,6 +12,7 @@
 #include <sqlite3.h>
 
 #define TAM 10000
+#define MAX_CLIENTS 1000
 
 void send_file(char *path, int sockfd)
 {
@@ -234,11 +235,16 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr);
     while (1)
     {
       int newsockfd = accept(socket_server, (struct sockaddr *)&cli_addr, (socklen_t *)&clilen);
+      if (newsockfd < 0)
+      {
+        perror("accept");
+        exit(1);
+      }
       int children_client_pid;
       if ((children_client_pid = fork()) == -1)
       {
@@ -306,7 +312,7 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr4);
     while (1)
     {
@@ -375,11 +381,16 @@ int main(int argc, char *argv[])
   if (child_pid == 0)
   {
     prctl(PR_SET_PDEATHSIG, SIGHUP);
-    listen(socket_server, 1000);
+    listen(socket_server, MAX_CLIENTS);
     int clilen = sizeof(cli_addr6);
     while (1)
     {
       int newsockfd = accept(socket_server, (struct sockaddr *)&cli_addr6, (socklen_t *)&clilen);
+      if(newsockfd < 0)
+      {
+        perror("accept");
+        exit(1);
+      }
       int children_client_pid;
       if ((children_client_pid = fork()) == -1)
       {
