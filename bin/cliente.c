@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
         }
 		while (1)
 		{
-			//sleep(1);
+			sleep(1);
 			char buffer[TAM];
 			memset(buffer, 0, sizeof(buffer));
             ssize_t n = send(sockfd, query, sizeof(query), 0);
