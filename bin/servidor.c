@@ -37,7 +37,7 @@ void send_file(char *path, int sockfd)
       perror("Error en el send.");
       exit(1);
     }
-    bzero(data, TAM);
+    //bzero(data, TAM); //fijate si esto no te jode alguna funcionalidad
   } else {
     perror("fgets");
     exit(1);
@@ -447,6 +447,7 @@ int main(int argc, char *argv[])
         close(socket_server);
         //agregar_cantidad_recibida((char *)ipv6_buf, (unsigned long)resultado);
         send_file("obj/BDD.db", newsockfd);
+        loggear_query("Un cliente tipo C ha descargado la base de datos;", log_db);
         close(newsockfd);
         exit(0);
       }
