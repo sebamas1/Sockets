@@ -449,7 +449,7 @@ int main(int argc, char *argv[])
         send_file("obj/BDD.db", newsockfd);
         loggear_query("Un cliente tipo C ha descargado la base de datos;", log_db);
         close(newsockfd);
-        exit(0);
+        exit(EXIT_SUCCESS);
       }
     }
   }
