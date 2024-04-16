@@ -41,9 +41,6 @@ Se debe disponer de una base de datos [SQLite][sqlite] con una tabla que registr
 
 La entrega se hace a travéz del repositorio de GitHub y se deberá demostrar la realización del mismo mediante un correcto uso del [workflow de Git][workflow]. El repositorio deberá proveer los archivos fuente y cualquier otro archivo asociados a la compilación, archivos  de  proyecto  ”Makefile”  y  el  código correctamente documentado. No debe contener ningún archivo asociado a proyectos de un IDE y se debe asumir que el proyecto podrá ser compilado y corrido por una `tty` en una distribución de Linux con las herramientas típicas de desarrollo. También se deberá entregar un informe (que pude ser en MD en el repo) explicando paso a paso el desarrllo, inluyendo graficos del diseño solución propuesto, justificando en todo momento lo implementrado.
 
-## Evaluación
-El presente trabajo práctico es individual y deberá entregarse antes de las 16:59ART del día 25 de Abril de 2022 dejando asentado en el LEV con el archivo de informe. Será corregido y luego se coordinará una fecha para la defensa oral del mismo.
-
 ## Links / Referencias
 - [SQLite](https://www.sqlite.org/quickstart.html)
 - [Git Workflow](https://www.atlassian.com/git/tutorials/comparing-workflows)
